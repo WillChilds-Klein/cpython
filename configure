@@ -17873,6 +17873,7 @@ main ()
 {
 
 /* SSL APIs */
+
 SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
 SSL_CTX_set_keylog_callback(ctx, keylog_cb);
 SSL *ssl = SSL_new(ctx);
@@ -17880,13 +17881,6 @@ X509_VERIFY_PARAM *param = SSL_get0_param(ssl);
 X509_VERIFY_PARAM_set1_host(param, "python.org", 0);
 SSL_free(ssl);
 SSL_CTX_free(ctx);
-
-/* hashlib APIs */
-OBJ_nid2sn(NID_md5);
-OBJ_nid2sn(NID_sha1);
-OBJ_nid2sn(NID_sha3_512);
-OBJ_nid2sn(NID_blake2b512);
-EVP_PBE_scrypt(NULL, 0, NULL, 0, 2, 8, 1, 0, NULL, 0);
 
   ;
   return 0;

@@ -208,7 +208,7 @@ _symtable symtablemodule.c
 
 # Socket module helper for SSL support; you must comment out the other
 # socket line above, and edit the OPENSSL variable:
-# OPENSSL=/path/to/openssl/directory
+OPENSSL=/home/ubuntu/workplace/local-install/
 # _ssl _ssl.c \
 #     -I$(OPENSSL)/include -L$(OPENSSL)/lib \
 #     -lssl -lcrypto
@@ -217,13 +217,13 @@ _symtable symtablemodule.c
 #     -lcrypto
 
 # To statically link OpenSSL:
-# _ssl _ssl.c \
-#     -I$(OPENSSL)/include -L$(OPENSSL)/lib \
-#     -l:libssl.a -Wl,--exclude-libs,libssl.a \
-#     -l:libcrypto.a -Wl,--exclude-libs,libcrypto.a
-#_hashlib _hashopenssl.c \
-#     -I$(OPENSSL)/include -L$(OPENSSL)/lib \
-#     -l:libcrypto.a -Wl,--exclude-libs,libcrypto.a
+_ssl _ssl.c \
+     -I$(OPENSSL)/include -L$(OPENSSL)/lib \
+     -l:libssl.a -Wl,--exclude-libs,libssl.a \
+     -l:libcrypto.a -Wl,--exclude-libs,libcrypto.a
+_hashlib _hashopenssl.c \
+     -I$(OPENSSL)/include -L$(OPENSSL)/lib \
+     -l:libcrypto.a -Wl,--exclude-libs,libcrypto.a
 
 # The crypt module is now disabled by default because it breaks builds
 # on many systems (where -lcrypt is needed), e.g. Linux (I believe).
