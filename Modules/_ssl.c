@@ -869,12 +869,12 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
             if (mode & SSL_VERIFY_PEER) {
                 int (*verify_cb)(int, X509_STORE_CTX *) = NULL;
                 verify_cb = SSL_get_verify_callback(self->ssl);
-                mode |= SSL_VERIFY_POST_HANDSHAKE;
+                //mode |= SSL_VERIFY_POST_HANDSHAKE;
                 SSL_set_verify(self->ssl, mode, verify_cb);
             }
         } else {
             /* client socket */
-            SSL_set_post_handshake_auth(self->ssl, 1);
+            //SSL_set_post_handshake_auth(self->ssl, 1);
         }
     }
 #endif
@@ -1861,7 +1861,8 @@ _ssl__SSLSocket_get_verified_chain_impl(PySSLSocket *self)
 /*[clinic end generated code: output=802421163cdc3110 input=5fb0714f77e2bd51]*/
 {
     /* borrowed reference */
-    STACK_OF(X509) *chain = SSL_get0_verified_chain(self->ssl);
+    //STACK_OF(X509) *chain = SSL_get0_verified_chain(self->ssl);
+    STACK_OF(X509) *chain = NULL;
     if (chain == NULL) {
         Py_RETURN_NONE;
     }
@@ -2032,7 +2033,8 @@ _ssl__SSLSocket_shared_ciphers_impl(PySSLSocket *self)
     server_ciphers = SSL_get_ciphers(self->ssl);
     if (!server_ciphers)
         Py_RETURN_NONE;
-    client_ciphers = SSL_get_client_ciphers(self->ssl);
+    //client_ciphers = SSL_get_client_ciphers(self->ssl);
+    client_ciphers = NULL;
     if (!client_ciphers)
         Py_RETURN_NONE;
 
@@ -2042,8 +2044,8 @@ _ssl__SSLSocket_shared_ciphers_impl(PySSLSocket *self)
     len = 0;
     for (i = 0; i < sk_SSL_CIPHER_num(server_ciphers); i++) {
         cipher = sk_SSL_CIPHER_value(server_ciphers, i);
-        if (sk_SSL_CIPHER_find(client_ciphers, cipher) < 0)
-            continue;
+        //if (sk_SSL_CIPHER_find(client_ciphers, cipher) < 0)
+        //    continue;
 
         PyObject *tup = cipher_to_tuple(cipher);
         if (!tup) {
@@ -2772,7 +2774,8 @@ _ssl__SSLSocket_verify_client_post_handshake_impl(PySSLSocket *self)
 /*[clinic end generated code: output=532147f3b1341425 input=6bfa874810a3d889]*/
 {
 #ifdef TLS1_3_VERSION
-    int err = SSL_verify_client_post_handshake(self->ssl);
+    //int err = SSL_verify_client_post_handshake(self->ssl);
+    int err = 0;
     if (err == 0)
         return _setSSLError(get_state_sock(self), NULL, 0, __FILE__, __LINE__);
     else
@@ -3201,7 +3204,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
 
 #ifdef TLS1_3_VERSION
     self->post_handshake_auth = 0;
-    SSL_CTX_set_post_handshake_auth(self->ctx, self->post_handshake_auth);
+    //SSL_CTX_set_post_handshake_auth(self->ctx, self->post_handshake_auth);
 #endif
 
     return (PyObject *)self;

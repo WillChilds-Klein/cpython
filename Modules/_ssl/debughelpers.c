@@ -197,7 +197,8 @@ _PySSLContext_set_keylog_filename(PySSLContext *self, PyObject *arg, void *c) {
     if (fp == NULL)
         return -1;
 
-    self->keylog_bio = BIO_new_fp(fp, BIO_CLOSE | BIO_FP_TEXT);
+    //self->keylog_bio = BIO_new_fp(fp, BIO_CLOSE | BIO_FP_TEXT);
+    self->keylog_bio = BIO_new_fp(fp, BIO_CLOSE);
     if (self->keylog_bio == NULL) {
         PyErr_SetString(get_state_ctx(self)->PySSLErrorObject,
                         "Can't malloc memory for keylog file");

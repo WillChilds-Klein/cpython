@@ -1880,7 +1880,7 @@ hashlib_md_meth_names(PyObject *module)
     // get algorithms from all activated providers in default context
     EVP_MD_do_all_provided(NULL, &_openssl_hash_name_mapper, &state);
 #else
-    EVP_MD_do_all(&_openssl_hash_name_mapper, &state);
+    //EVP_MD_do_all(&_openssl_hash_name_mapper, &state);
 #endif
 
     if (state.error) {
