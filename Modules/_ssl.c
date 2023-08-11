@@ -2044,8 +2044,13 @@ _ssl__SSLSocket_shared_ciphers_impl(PySSLSocket *self)
     len = 0;
     for (i = 0; i < sk_SSL_CIPHER_num(server_ciphers); i++) {
         cipher = sk_SSL_CIPHER_value(server_ciphers, i);
-        //if (sk_SSL_CIPHER_find(client_ciphers, cipher) < 0)
-        //    continue;
+#if defined(OPENSSL_IS_AWSLC)
+        size_t unused_idx;
+        if (sk_SSL_CIPHER_find(client_ciphers, &unused_idx, cipher) < 0)
+#else
+        if (sk_SSL_CIPHER_find(client_ciphers, cipher) < 0)
+#endif
+            continue;
 
         PyObject *tup = cipher_to_tuple(cipher);
         if (!tup) {
