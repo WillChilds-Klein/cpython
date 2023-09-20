@@ -51,6 +51,10 @@
 #include <sys/poll.h>
 #endif
 
+#if defined(OPENSSL_IS_AWSLC)
+  #define SSL_OP_NO_TLSv1_3
+#endif
+
 /* Include OpenSSL header files */
 #include "openssl/rsa.h"
 #include "openssl/crypto.h"
@@ -3170,7 +3174,8 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
         /* stick to OpenSSL's default settings */
         result = 1;
 #else
-        result = SSL_CTX_set_cipher_list(ctx, PY_SSL_DEFAULT_CIPHER_STRING);
+        // TODO [childw]
+        result = SSL_CTX_set_cipher_list(ctx, "ALL"/*PY_SSL_DEFAULT_CIPHER_STRING*/);
 #endif
     } else {
         /* SSLv2 needs MD5 */
@@ -3180,7 +3185,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
         Py_DECREF(self);
         ERR_clear_error();
         PyErr_SetString(get_state_ctx(self)->PySSLErrorObject,
-                        "No cipher can be selected.");
+                        "No cipher can be selected. 1");
         goto error;
     }
 #ifdef PY_SSL_MIN_PROTOCOL
@@ -3276,14 +3281,15 @@ static PyObject *
 _ssl__SSLContext_set_ciphers_impl(PySSLContext *self, const char *cipherlist)
 /*[clinic end generated code: output=3a3162f3557c0f3f input=a7ac931b9f3ca7fc]*/
 {
-    int ret = SSL_CTX_set_cipher_list(self->ctx, cipherlist);
+    // TODO [childw]
+    int ret = SSL_CTX_set_cipher_list(self->ctx, "ALL");
     if (ret == 0) {
         /* Clearing the error queue is necessary on some OpenSSL versions,
            otherwise the error will be reported again when another SSL call
            is done. */
         ERR_clear_error();
         PyErr_SetString(get_state_ctx(self)->PySSLErrorObject,
-                        "No cipher can be selected.");
+                        "No cipher can be selected. 2");
         return NULL;
     }
     Py_RETURN_NONE;
