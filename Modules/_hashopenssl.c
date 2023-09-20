@@ -1879,8 +1879,7 @@ hashlib_md_meth_names(PyObject *module)
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
     // get algorithms from all activated providers in default context
     EVP_MD_do_all_provided(NULL, &_openssl_hash_name_mapper, &state);
-#elif !defined(OPENSSL_IS_AWSLC)
-    // TODO [childw]
+#else
     EVP_MD_do_all(&_openssl_hash_name_mapper, &state);
 #endif
 
