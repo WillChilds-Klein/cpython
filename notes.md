@@ -125,7 +125,8 @@ index 4b71c4e00f..0c13879b6e 100755
 
 $ ./configure \
         --with-openssl=/home/ubuntu/workplace/local-install \
-        --with-builtin-hashlib-hashes=no \
+        --with-builtin-hashlib-hashes=blake2 \
+        --with-ssl-default-suites=openssl \
         --prefix /home/ubuntu/workplace/local-install \
     && make -j $(nproc)
 ...

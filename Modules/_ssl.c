@@ -53,6 +53,7 @@
 
 #if defined(OPENSSL_IS_AWSLC)
   #define SSL_OP_NO_TLSv1_3
+  #define OPENSSL_NO_TLS1_3
 #endif
 
 /* Include OpenSSL header files */
@@ -229,7 +230,7 @@ enum py_proto_version {
     PY_PROTO_TLSv1 = TLS1_VERSION,
     PY_PROTO_TLSv1_1 = TLS1_1_VERSION,
     PY_PROTO_TLSv1_2 = TLS1_2_VERSION,
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION)
     PY_PROTO_TLSv1_3 = TLS1_3_VERSION,
 #else
     PY_PROTO_TLSv1_3 = 0x304,
@@ -254,7 +255,7 @@ enum py_proto_version {
     #error "PY_PROTO_MINIMUM_AVAILABLE not found"
 #endif
 
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     PY_PROTO_MAXIMUM_AVAILABLE = PY_PROTO_TLSv1_3,
 #elif defined(TLS1_2_VERSION) && !defined(OPENSSL_NO_TLS1_2)
     PY_PROTO_MAXIMUM_AVAILABLE = PY_PROTO_TLSv1_2,
@@ -291,7 +292,7 @@ typedef struct {
      */
     unsigned int hostflags;
     int protocol;
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     int post_handshake_auth;
 #endif
     PyObject *msg_cb;
@@ -863,7 +864,7 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
     SSL_set_mode(self->ssl,
                  SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | SSL_MODE_AUTO_RETRY);
 
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     if (sslctx->post_handshake_auth == 1) {
         if (socket_type == PY_SSL_SERVER) {
             /* bpo-37428: OpenSSL does not ignore SSL_VERIFY_POST_HANDSHAKE.
@@ -1867,12 +1868,7 @@ _ssl__SSLSocket_get_verified_chain_impl(PySSLSocket *self)
 /*[clinic end generated code: output=802421163cdc3110 input=5fb0714f77e2bd51]*/
 {
     /* borrowed reference */
-#if defined(OPENSSL_IS_AWSLC)
-    STACK_OF(X509) *chain = NULL;
-#else
-    // TODO [childw]
     STACK_OF(X509) *chain = SSL_get0_verified_chain(self->ssl);
-#endif
     if (chain == NULL) {
         Py_RETURN_NONE;
     }
@@ -2043,12 +2039,7 @@ _ssl__SSLSocket_shared_ciphers_impl(PySSLSocket *self)
     server_ciphers = SSL_get_ciphers(self->ssl);
     if (!server_ciphers)
         Py_RETURN_NONE;
-#if defined(OPENSSL_IS_AWSLC)
-    client_ciphers = NULL;
-#else
-    // TODO [childw]
     client_ciphers = SSL_get_client_ciphers(self->ssl);
-#endif
     if (!client_ciphers)
         Py_RETURN_NONE;
 
@@ -2792,7 +2783,7 @@ static PyObject *
 _ssl__SSLSocket_verify_client_post_handshake_impl(PySSLSocket *self)
 /*[clinic end generated code: output=532147f3b1341425 input=6bfa874810a3d889]*/
 {
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     int err = SSL_verify_client_post_handshake(self->ssl);
     if (err == 0)
         return _setSSLError(get_state_sock(self), NULL, 0, __FILE__, __LINE__);
@@ -3185,7 +3176,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
         Py_DECREF(self);
         ERR_clear_error();
         PyErr_SetString(get_state_ctx(self)->PySSLErrorObject,
-                        "No cipher can be selected. 1");
+                        "No cipher can be selected.");
         goto error;
     }
 #ifdef PY_SSL_MIN_PROTOCOL
@@ -3221,7 +3212,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
     X509_VERIFY_PARAM_set_flags(params, X509_V_FLAG_TRUSTED_FIRST);
     X509_VERIFY_PARAM_set_hostflags(params, self->hostflags);
 
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     self->post_handshake_auth = 0;
     // TODO [childw]
     SSL_CTX_set_post_handshake_auth(self->ctx, self->post_handshake_auth);
@@ -3282,14 +3273,14 @@ _ssl__SSLContext_set_ciphers_impl(PySSLContext *self, const char *cipherlist)
 /*[clinic end generated code: output=3a3162f3557c0f3f input=a7ac931b9f3ca7fc]*/
 {
     // TODO [childw]
-    int ret = SSL_CTX_set_cipher_list(self->ctx, "ALL");
+    int ret = SSL_CTX_set_cipher_list(self->ctx, cipherlist);
     if (ret == 0) {
         /* Clearing the error queue is necessary on some OpenSSL versions,
            otherwise the error will be reported again when another SSL call
            is done. */
         ERR_clear_error();
         PyErr_SetString(get_state_ctx(self)->PySSLErrorObject,
-                        "No cipher can be selected. 2");
+                        "No cipher can be selected.");
         return NULL;
     }
     Py_RETURN_NONE;
@@ -3597,7 +3588,7 @@ set_maximum_version(PySSLContext *self, PyObject *arg, void *c)
     return set_min_max_proto_version(self, arg, 1);
 }
 
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
 static PyObject *
 get_num_tickets(PySSLContext *self, void *c)
 {
@@ -3628,7 +3619,7 @@ set_num_tickets(PySSLContext *self, PyObject *arg, void *c)
 
 PyDoc_STRVAR(PySSLContext_num_tickets_doc,
 "Control the number of TLSv1.3 session tickets");
-#endif /* defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)*/
+#endif /* defined(TLS1_3_VERSION) */
 
 static PyObject *
 get_security_level(PySSLContext *self, void *c)
@@ -3718,14 +3709,14 @@ set_check_hostname(PySSLContext *self, PyObject *arg, void *c)
 
 static PyObject *
 get_post_handshake_auth(PySSLContext *self, void *c) {
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     return PyBool_FromLong(self->post_handshake_auth);
 #else
     Py_RETURN_NONE;
 #endif
 }
 
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
 static int
 set_post_handshake_auth(PySSLContext *self, PyObject *arg, void *c) {
     if (arg == NULL) {
@@ -4675,7 +4666,7 @@ static PyGetSetDef context_getsetlist[] = {
                       (setter) _PySSLContext_set_msg_callback, NULL},
     {"sni_callback", (getter) get_sni_callback,
                      (setter) set_sni_callback, PySSLContext_sni_callback_doc},
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     {"num_tickets", (getter) get_num_tickets,
                     (setter) set_num_tickets, PySSLContext_num_tickets_doc},
 #endif
@@ -6041,7 +6032,7 @@ sslmodule_init_constants(PyObject *m)
     addbool(m, "HAS_TLSv1_2", 0);
 #endif
 
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     addbool(m, "HAS_TLSv1_3", 1);
 #else
     addbool(m, "HAS_TLSv1_3", 0);
