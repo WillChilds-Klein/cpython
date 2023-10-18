@@ -112,7 +112,7 @@ else:
 
 
 class SimpleIMAPHandler(socketserver.StreamRequestHandler):
-    timeout = support.LOOPBACK_TIMEOUT
+    timeout = None
     continuation = None
     capabilities = ''
 

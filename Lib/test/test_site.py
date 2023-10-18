@@ -485,7 +485,7 @@ class ImportSideEffectTests(unittest.TestCase):
         # Reset global urllib.request._opener
         self.addCleanup(urllib.request.urlcleanup)
         try:
-            with socket_helper.transient_internet(url):
+            with socket_helper.transient_internet(url, timeout=None):
                 with urllib.request.urlopen(req) as data:
                     code = data.getcode()
         except urllib.error.HTTPError as e:

@@ -240,8 +240,6 @@ def transient_internet(resource_name, *, timeout=_NOT_SET, errnos=()):
 
     old_timeout = socket.getdefaulttimeout()
     try:
-        if timeout is not None:
-            socket.setdefaulttimeout(timeout)
         yield
     except nntplib.NNTPTemporaryError as err:
         if support.verbose:
