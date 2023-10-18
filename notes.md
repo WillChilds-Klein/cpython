@@ -130,4 +130,9 @@ $ ./configure \
         --prefix /home/ubuntu/workplace/local-install \
     && make -j $(nproc)
 ...
+
+$ export SETUPTOOLS_USE_DISTUTILS=stdlib    # see https://github.com/pypa/setuptools/issues/3007
+
+$ make test
+...
 ```

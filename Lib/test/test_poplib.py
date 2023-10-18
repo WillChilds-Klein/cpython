@@ -456,7 +456,7 @@ class TestPOP3_TLSClass(TestPOP3Class):
         self.server = DummyPOP3Server((HOST, PORT))
         self.server.start()
         self.client = poplib.POP3(self.server.host, self.server.port,
-                                  timeout=test_support.LOOPBACK_TIMEOUT)
+                                  timeout=None)
         self.client.stls()
 
     def tearDown(self):
