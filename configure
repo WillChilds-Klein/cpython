@@ -17873,7 +17873,6 @@ main ()
 {
 
 /* SSL APIs */
-
 SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
 SSL_CTX_set_keylog_callback(ctx, keylog_cb);
 SSL *ssl = SSL_new(ctx);
