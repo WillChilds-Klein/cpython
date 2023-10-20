@@ -52,7 +52,6 @@
 #endif
 
 #if defined(OPENSSL_IS_AWSLC)
-  #define SSL_OP_NO_TLSv1_3
   #define OPENSSL_NO_TLS1_3
 #endif
 
@@ -874,13 +873,11 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
             if (mode & SSL_VERIFY_PEER) {
                 int (*verify_cb)(int, X509_STORE_CTX *) = NULL;
                 verify_cb = SSL_get_verify_callback(self->ssl);
-                // TODO [childw]
                 mode |= SSL_VERIFY_POST_HANDSHAKE;
                 SSL_set_verify(self->ssl, mode, verify_cb);
             }
         } else {
             /* client socket */
-            // TODO [childw]
             SSL_set_post_handshake_auth(self->ssl, 1);
         }
     }
@@ -3165,8 +3162,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
         /* stick to OpenSSL's default settings */
         result = 1;
 #else
-        // TODO [childw]
-        result = SSL_CTX_set_cipher_list(ctx, "ALL"/*PY_SSL_DEFAULT_CIPHER_STRING*/);
+        result = SSL_CTX_set_cipher_list(ctx, PY_SSL_DEFAULT_CIPHER_STRING);
 #endif
     } else {
         /* SSLv2 needs MD5 */
@@ -3214,7 +3210,6 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
 
 #if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     self->post_handshake_auth = 0;
-    // TODO [childw]
     SSL_CTX_set_post_handshake_auth(self->ctx, self->post_handshake_auth);
 #endif
 
@@ -3272,7 +3267,6 @@ static PyObject *
 _ssl__SSLContext_set_ciphers_impl(PySSLContext *self, const char *cipherlist)
 /*[clinic end generated code: output=3a3162f3557c0f3f input=a7ac931b9f3ca7fc]*/
 {
-    // TODO [childw]
     int ret = SSL_CTX_set_cipher_list(self->ctx, cipherlist);
     if (ret == 0) {
         /* Clearing the error queue is necessary on some OpenSSL versions,
@@ -4673,7 +4667,7 @@ static PyGetSetDef context_getsetlist[] = {
     {"options", (getter) get_options,
                 (setter) set_options, NULL},
     {"post_handshake_auth", (getter) get_post_handshake_auth,
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_IS_AWSLC)
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
                             (setter) set_post_handshake_auth,
 #else
                             NULL,
