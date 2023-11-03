@@ -341,7 +341,7 @@ class BasicSocketTests(unittest.TestCase):
         self.assertEqual(ssl.HAS_SNI, True)
         self.assertEqual(ssl.HAS_ECDH, True)
         self.assertEqual(ssl.HAS_TLSv1_2, True)
-        self.assertEqual(ssl.HAS_TLSv1_3, True)
+        self.assertEqual(ssl.HAS_TLSv1_3, "AWS-LC" not in ssl.OPENSSL_VERSION)
         ssl.OP_NO_SSLv2
         ssl.OP_NO_SSLv3
         ssl.OP_NO_TLSv1
@@ -3771,6 +3771,7 @@ class ThreadedTests(unittest.TestCase):
         self.assertEqual(s.recv_into(bytearray()), 0)
 
     def test_nonblocking_send(self):
+        #self.assertTrue(False)
         server = ThreadedEchoServer(CERTFILE,
                                     certreqs=ssl.CERT_NONE,
                                     ssl_version=ssl.PROTOCOL_TLS_SERVER,
@@ -3916,7 +3917,10 @@ class ThreadedTests(unittest.TestCase):
                                             server_hostname=hostname) as s:
                 with self.assertRaises(OSError):
                     s.connect((HOST, server.port))
-        self.assertIn("no shared cipher", server.conn_errors[0])
+        expected_err = "no shared cipher"
+        if "AWS-LC" in ssl.OPENSSL_VERSION:
+            expected_err = "NO_SHARED_CIPHER"
+        self.assertIn(expected_err, server.conn_errors[0])
 
     def test_version_basic(self):
         """

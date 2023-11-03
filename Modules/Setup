@@ -208,8 +208,8 @@ _symtable symtablemodule.c
 
 # Socket module helper for SSL support; you must comment out the other
 # socket line above, and edit the OPENSSL variable:
-OPENSSL=/home/ubuntu/workplace/local-install/
-# _ssl _ssl.c \
+OPENSSL=/home/ubuntu/workplace/local-install
+#_ssl _ssl.c \
 #     -I$(OPENSSL)/include -L$(OPENSSL)/lib \
 #     -lssl -lcrypto
 #_hashlib _hashopenssl.c \
