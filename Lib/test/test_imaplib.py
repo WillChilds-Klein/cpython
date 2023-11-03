@@ -457,6 +457,8 @@ class NewIMAPTestsMixin():
             pass
 
     def test_imaplib_timeout_test(self):
+        print("CALL TO TIMEOUT JUST HANGS SO THROW INSTEAD")
+        self.assertTrue(False)
         _, server = self._setup(SimpleIMAPHandler)
         addr = server.server_address[1]
         client = self.imap_class("localhost", addr, timeout=None)
@@ -550,6 +552,7 @@ class NewIMAPSSLTests(NewIMAPTestsMixin, unittest.TestCase):
     server_class = SecureTCPServer
 
     def test_ssl_raises(self):
+        self.assertTrue(False)
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self.assertEqual(ssl_context.verify_mode, ssl.CERT_REQUIRED)
         self.assertEqual(ssl_context.check_hostname, True)
@@ -564,6 +567,7 @@ class NewIMAPSSLTests(NewIMAPTestsMixin, unittest.TestCase):
             client.shutdown()
 
     def test_ssl_verified(self):
+        self.assertTrue(False)
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.load_verify_locations(CAFILE)
 

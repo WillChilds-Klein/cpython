@@ -665,9 +665,12 @@ internal_setblocking(PySocketSockObject *s, int block)
     Py_BEGIN_ALLOW_THREADS
 #ifndef MS_WINDOWS
 #if (defined(HAVE_SYS_IOCTL_H) && defined(FIONBIO))
+    //printf("WE HAVE_SYS_IOCTL_H and FIONBIO!!\n");
     block = !block;
-    if (ioctl(s->sock_fd, FIONBIO, (unsigned int *)&block) == -1)
+    if (ioctl(s->sock_fd, FIONBIO, (unsigned int *)&block) == -1) {
+        /*printf("FAILED TO SET.\n");*/
         goto done;
+    }
 #else
     delay_flag = fcntl(s->sock_fd, F_GETFL, 0);
     if (delay_flag == -1)

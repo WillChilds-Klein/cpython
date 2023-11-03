@@ -969,6 +969,7 @@ class EventLoopTestsMixin:
 
     @unittest.skipIf(ssl is None, 'No ssl module')
     def test_create_server_ssl(self):
+        self.assertTrue(False)
         proto = MyProto(loop=self.loop)
         server, host, port = self._make_ssl_server(
             lambda: proto, test_utils.ONLYCERT, test_utils.ONLYKEY)
@@ -1002,6 +1003,7 @@ class EventLoopTestsMixin:
     @socket_helper.skip_unless_bind_unix_socket
     @unittest.skipIf(ssl is None, 'No ssl module')
     def test_create_unix_server_ssl(self):
+        self.assertTrue(False)
         proto = MyProto(loop=self.loop)
         server, path = self._make_ssl_unix_server(
             lambda: proto, test_utils.ONLYCERT, test_utils.ONLYKEY)
