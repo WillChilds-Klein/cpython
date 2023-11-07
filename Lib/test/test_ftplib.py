@@ -30,7 +30,7 @@ with warnings.catch_warnings():
     import asynchat
 
 
-TIMEOUT = None
+TIMEOUT = support.LOOPBACK_TIMEOUT
 DEFAULT_ENCODING = 'utf-8'
 # the dummy data returned by server over the data channel when
 # RETR, LIST, NLST, MLSD commands are issued
