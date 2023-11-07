@@ -485,7 +485,6 @@ class ImportSideEffectTests(unittest.TestCase):
         #ctx.verify_mode = ssl.CERT_NONE
         #ctx.keylog_filename = 'combined.keys'
         url = license._Printer__data.split()[1]
-        #url = 'https://httpbin.org/ip'
         #url = 'https://localhost:4443'
         req = urllib.request.Request(url, method='HEAD')
         # Reset global urllib.request._opener

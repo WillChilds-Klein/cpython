@@ -3771,7 +3771,6 @@ class ThreadedTests(unittest.TestCase):
         self.assertEqual(s.recv_into(bytearray()), 0)
 
     def test_nonblocking_send(self):
-        #self.assertTrue(False)
         server = ThreadedEchoServer(CERTFILE,
                                     certreqs=ssl.CERT_NONE,
                                     ssl_version=ssl.PROTOCOL_TLS_SERVER,
