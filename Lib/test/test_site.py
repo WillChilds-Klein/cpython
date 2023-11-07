@@ -474,6 +474,7 @@ class ImportSideEffectTests(unittest.TestCase):
                 self.fail("sitecustomize not imported automatically")
 
     @test.support.requires_resource('network')
+    @test.support.system_must_validate_cert
     @unittest.skipUnless(hasattr(urllib.request, "HTTPSHandler"),
                          'need SSL support to download license')
     def test_license_exists_at_url(self):
