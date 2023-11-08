@@ -863,11 +863,6 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
     SSL_set_mode(self->ssl,
                  SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | SSL_MODE_AUTO_RETRY);
 
-#if defined(OPENSSL_IS_AWSLC)
-    const uint32_t mode = SSL_get_mode(self->ssl) | SSL_MODE_ENABLE_PARTIAL_WRITE;
-    SSL_set_mode(self->ssl, mode);
-#endif
-
 #if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     if (sslctx->post_handshake_auth == 1) {
         if (socket_type == PY_SSL_SERVER) {
