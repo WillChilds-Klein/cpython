@@ -4049,6 +4049,9 @@ class ThreadedTests(unittest.TestCase):
 
         client_context, server_context, hostname = testing_context()
 
+        # tls-unique isn't defined as of TLSv1.3
+        client_context.maximum_version = ssl.TLSVersion.TLSv1_2
+
         server = ThreadedEchoServer(context=server_context,
                                     chatty=True,
                                     connectionchatty=False)
