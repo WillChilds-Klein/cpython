@@ -170,7 +170,7 @@ def is_ubuntu():
     except FileNotFoundError:
         return False
 
-if is_ubuntu():
+if is_ubuntu() and "AWS-LC" not in ssl.OPENSSL_VERSION:
     def seclevel_workaround(*ctxs):
         """"Lower security level to '1' and allow all ciphers for TLS 1.0/1"""
         for ctx in ctxs:
