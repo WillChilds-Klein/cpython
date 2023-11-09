@@ -44,6 +44,7 @@ from ssl import TLSVersion, _TLSContentType, _TLSMessageType, _TLSAlertType
 
 Py_DEBUG = hasattr(sys, 'gettotalrefcount')
 Py_DEBUG_WIN32 = Py_DEBUG and sys.platform == 'win32'
+Py_OPENSSL_IS_AWSLC = "AWS-LC" in ssl.OPENSSL_VERSION
 
 PROTOCOLS = sorted(ssl._PROTOCOL_NAMES)
 HOST = socket_helper.HOST
@@ -170,7 +171,7 @@ def is_ubuntu():
     except FileNotFoundError:
         return False
 
-if is_ubuntu() and "AWS-LC" not in ssl.OPENSSL_VERSION:
+if is_ubuntu() and not Py_OPENSSL_IS_AWSLC:
     def seclevel_workaround(*ctxs):
         """"Lower security level to '1' and allow all ciphers for TLS 1.0/1"""
         for ctx in ctxs:
@@ -341,7 +342,7 @@ class BasicSocketTests(unittest.TestCase):
         self.assertEqual(ssl.HAS_SNI, True)
         self.assertEqual(ssl.HAS_ECDH, True)
         self.assertEqual(ssl.HAS_TLSv1_2, True)
-        self.assertEqual(ssl.HAS_TLSv1_3, "AWS-LC" not in ssl.OPENSSL_VERSION)
+        self.assertEqual(ssl.HAS_TLSv1_3, not Py_OPENSSL_IS_AWSLC)
         ssl.OP_NO_SSLv2
         ssl.OP_NO_SSLv3
         ssl.OP_NO_TLSv1
@@ -3917,7 +3918,7 @@ class ThreadedTests(unittest.TestCase):
                 with self.assertRaises(OSError):
                     s.connect((HOST, server.port))
         expected_err = "no shared cipher"
-        if "AWS-LC" in ssl.OPENSSL_VERSION:
+        if Py_OPENSSL_IS_AWSLC:
             expected_err = "NO_SHARED_CIPHER"
         self.assertIn(expected_err, server.conn_errors[0])
 
@@ -4124,6 +4125,7 @@ class ThreadedTests(unittest.TestCase):
         self.assertIs(stats['compression'], None)
 
     @unittest.skipIf(Py_DEBUG_WIN32, "Avoid mixing debug/release CRT on Windows")
+    @unittest.skipIf(Py_OPENSSL_IS_AWSLC, "AWS-LC doesn't support (FF)DHE")
     def test_dh_params(self):
         # Check we can get a connection with ephemeral Diffie-Hellman
         client_context, server_context, hostname = testing_context()
@@ -4138,7 +4140,7 @@ class ThreadedTests(unittest.TestCase):
         cipher = stats["cipher"][0]
         parts = cipher.split("-")
         if "ADH" not in parts and "EDH" not in parts and "DHE" not in parts:
-            self.fail("Non-DH cipher: " + cipher[0])
+            self.fail("Non-DH kx: " + parts[0])
 
     def test_ecdh_curve(self):
         # server secp384r1, client auto
