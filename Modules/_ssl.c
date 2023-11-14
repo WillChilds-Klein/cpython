@@ -51,10 +51,6 @@
 #include <sys/poll.h>
 #endif
 
-#if defined(OPENSSL_IS_AWSLC)
-  #define OPENSSL_NO_TLS1_3
-#endif
-
 /* Include OpenSSL header files */
 #include "openssl/rsa.h"
 #include "openssl/crypto.h"
@@ -185,6 +181,12 @@ extern const SSL_METHOD *TLSv1_2_method(void);
 #endif
 
 
+
+#if defined(OPENSSL_IS_AWSLC) || !defined(TLS1_3_VERSION) || defined(OPENSSL_NO_TLS1_3)
+  #define PY_SSL_NO_POST_HS_AUTH
+#endif
+
+
 enum py_ssl_error {
     /* these mirror ssl.h */
     PY_SSL_ERROR_NONE,
@@ -291,7 +293,7 @@ typedef struct {
      */
     unsigned int hostflags;
     int protocol;
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     int post_handshake_auth;
 #endif
     PyObject *msg_cb;
@@ -863,7 +865,7 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
     SSL_set_mode(self->ssl,
                  SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | SSL_MODE_AUTO_RETRY);
 
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     if (sslctx->post_handshake_auth == 1) {
         if (socket_type == PY_SSL_SERVER) {
             /* bpo-37428: OpenSSL does not ignore SSL_VERIFY_POST_HANDSHAKE.
@@ -2833,7 +2835,7 @@ static PyObject *
 _ssl__SSLSocket_verify_client_post_handshake_impl(PySSLSocket *self)
 /*[clinic end generated code: output=532147f3b1341425 input=6bfa874810a3d889]*/
 {
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     int err = SSL_verify_client_post_handshake(self->ssl);
     if (err == 0)
         return _setSSLError(get_state_sock(self), NULL, 0, __FILE__, __LINE__);
@@ -3261,7 +3263,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
     X509_VERIFY_PARAM_set_flags(params, X509_V_FLAG_TRUSTED_FIRST);
     X509_VERIFY_PARAM_set_hostflags(params, self->hostflags);
 
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     self->post_handshake_auth = 0;
     SSL_CTX_set_post_handshake_auth(self->ctx, self->post_handshake_auth);
 #endif
@@ -3756,14 +3758,14 @@ set_check_hostname(PySSLContext *self, PyObject *arg, void *c)
 
 static PyObject *
 get_post_handshake_auth(PySSLContext *self, void *c) {
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     return PyBool_FromLong(self->post_handshake_auth);
 #else
     Py_RETURN_NONE;
 #endif
 }
 
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
 static int
 set_post_handshake_auth(PySSLContext *self, PyObject *arg, void *c) {
     if (arg == NULL) {
@@ -4720,7 +4722,7 @@ static PyGetSetDef context_getsetlist[] = {
     {"options", (getter) get_options,
                 (setter) set_options, NULL},
     {"post_handshake_auth", (getter) get_post_handshake_auth,
-#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
                             (setter) set_post_handshake_auth,
 #else
                             NULL,
