@@ -1320,16 +1320,24 @@ class ContextTests(unittest.TestCase):
         if has_tls_protocol(ssl.PROTOCOL_TLSv1_1):
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_1)
 
-            self.assertIn(
-                ctx.minimum_version, minimum_range
-            )
-            self.assertEqual(
-                ctx.maximum_version, ssl.TLSVersion.MAXIMUM_SUPPORTED
-            )
-            with self.assertRaises(ValueError):
-                ctx.minimum_version = ssl.TLSVersion.MINIMUM_SUPPORTED
-            with self.assertRaises(ValueError):
-                ctx.maximum_version = ssl.TLSVersion.TLSv1
+            if Py_OPENSSL_IS_AWSLC:
+                self.assertEqual(
+                    ctx.minimum_version, ssl.TLSVersion.TLSv1_1
+                )
+                self.assertEqual(
+                    ctx.maximum_version, ssl.TLSVersion.TLSv1_1
+                )
+            else:
+                self.assertIn(
+                    ctx.minimum_version, minimum_range
+                )
+                self.assertEqual(
+                    ctx.maximum_version, ssl.TLSVersion.MAXIMUM_SUPPORTED
+                )
+                with self.assertRaises(ValueError):
+                    ctx.minimum_version = ssl.TLSVersion.MINIMUM_SUPPORTED
+                with self.assertRaises(ValueError):
+                    ctx.maximum_version = ssl.TLSVersion.TLSv1
 
     @unittest.skipUnless(
         hasattr(ssl.SSLContext, 'security_level'),
