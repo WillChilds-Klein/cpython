@@ -342,7 +342,7 @@ class BasicSocketTests(unittest.TestCase):
         self.assertEqual(ssl.HAS_SNI, True)
         self.assertEqual(ssl.HAS_ECDH, True)
         self.assertEqual(ssl.HAS_TLSv1_2, True)
-        self.assertEqual(ssl.HAS_TLSv1_3, not Py_OPENSSL_IS_AWSLC)
+        self.assertEqual(ssl.HAS_TLSv1_3, True)
         ssl.OP_NO_SSLv2
         ssl.OP_NO_SSLv3
         ssl.OP_NO_TLSv1
@@ -4492,7 +4492,10 @@ class ThreadedTests(unittest.TestCase):
                                  'Session refers to a different SSLContext.')
 
 
-@unittest.skipUnless(has_tls_version('TLSv1_3'), "Test needs TLS 1.3")
+@unittest.skipUnless(
+    has_tls_version('TLSv1_3') and not Py_OPENSSL_IS_AWSLC,
+    "Test needs TLS 1.3; AWS-LC doesn't support PHA"
+)
 class TestPostHandshakeAuth(unittest.TestCase):
     def test_pha_setter(self):
         protocols = [
