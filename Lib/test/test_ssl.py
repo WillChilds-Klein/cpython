@@ -548,7 +548,7 @@ class BasicSocketTests(unittest.TestCase):
         else:
             openssl_ver = f"OpenSSL {major:d}.{minor:d}.{fix:d}"
         self.assertTrue(
-            s.startswith((openssl_ver, libressl_ver)),
+            s.startswith((openssl_ver, libressl_ver, "AWS-LC")),
             (s, t, hex(n))
         )
 
@@ -1387,24 +1387,25 @@ class ContextTests(unittest.TestCase):
         with self.assertRaises(OSError) as cm:
             ctx.load_cert_chain(NONEXISTINGCERT)
         self.assertEqual(cm.exception.errno, errno.ENOENT)
-        with self.assertRaisesRegex(ssl.SSLError, "PEM lib"):
+        with self.assertRaisesRegex(ssl.SSLError, "PEM (lib|routines)"):
             ctx.load_cert_chain(BADCERT)
-        with self.assertRaisesRegex(ssl.SSLError, "PEM lib"):
+        with self.assertRaisesRegex(ssl.SSLError, "PEM (lib|routines)"):
             ctx.load_cert_chain(EMPTYCERT)
         # Separate key and cert
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(ONLYCERT, ONLYKEY)
         ctx.load_cert_chain(certfile=ONLYCERT, keyfile=ONLYKEY)
         ctx.load_cert_chain(certfile=BYTES_ONLYCERT, keyfile=BYTES_ONLYKEY)
-        with self.assertRaisesRegex(ssl.SSLError, "PEM lib"):
+        with self.assertRaisesRegex(ssl.SSLError, "PEM (lib|routines)"):
             ctx.load_cert_chain(ONLYCERT)
-        with self.assertRaisesRegex(ssl.SSLError, "PEM lib"):
+        with self.assertRaisesRegex(ssl.SSLError, "PEM (lib|routines)"):
             ctx.load_cert_chain(ONLYKEY)
-        with self.assertRaisesRegex(ssl.SSLError, "PEM lib"):
+        with self.assertRaisesRegex(ssl.SSLError, "PEM (lib|routines)"):
             ctx.load_cert_chain(certfile=ONLYKEY, keyfile=ONLYCERT)
         # Mismatching key and cert
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        with self.assertRaisesRegex(ssl.SSLError, "key values mismatch"):
+        with self.assertRaisesRegex(ssl.SSLError,
+            "(key values mismatch|KEY_VALUES_MISMATCH)"):
             ctx.load_cert_chain(CAFILE_CACERT, ONLYKEY)
         # Password protected key and cert
         ctx.load_cert_chain(CERTFILE_PROTECTED, password=KEY_PASSWORD)
@@ -1472,7 +1473,7 @@ class ContextTests(unittest.TestCase):
         with self.assertRaises(OSError) as cm:
             ctx.load_verify_locations(NONEXISTINGCERT)
         self.assertEqual(cm.exception.errno, errno.ENOENT)
-        with self.assertRaisesRegex(ssl.SSLError, "PEM lib"):
+        with self.assertRaisesRegex(ssl.SSLError, "PEM (lib|routines)"):
             ctx.load_verify_locations(BADCERT)
         ctx.load_verify_locations(CERTFILE, CAPATH)
         ctx.load_verify_locations(CERTFILE, capath=BYTES_CAPATH)
@@ -1870,10 +1871,11 @@ class SSLErrorTests(unittest.TestCase):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         with self.assertRaises(ssl.SSLError) as cm:
             ctx.load_dh_params(CERTFILE)
-        self.assertEqual(cm.exception.library, 'PEM')
-        self.assertEqual(cm.exception.reason, 'NO_START_LINE')
+        if not Py_OPENSSL_IS_AWSLC:
+            self.assertEqual(cm.exception.library, 'PEM')
+            self.assertEqual(cm.exception.reason, 'NO_START_LINE')
         s = str(cm.exception)
-        self.assertTrue(s.startswith("[PEM: NO_START_LINE] no start line"), s)
+        self.assertTrue("NO_START_LINE" in s, s)
 
     def test_subclass(self):
         # Check that the appropriate SSLError subclass is raised
@@ -2050,7 +2052,8 @@ class SimpleBackgroundTests(unittest.TestCase):
         s = test_wrap_socket(socket.socket(socket.AF_INET),
                             cert_reqs=ssl.CERT_REQUIRED)
         self.addCleanup(s.close)
-        self.assertRaisesRegex(ssl.SSLError, "certificate verify failed",
+        msg_re = "(certificate verify failed|CERTIFICATE_VERIFY_FAILED)"
+        self.assertRaisesRegex(ssl.SSLError, msg_re,
                                s.connect, self.server_addr)
 
     def test_connect_ex(self):
@@ -2118,7 +2121,8 @@ class SimpleBackgroundTests(unittest.TestCase):
             server_hostname=SIGNED_CERTFILE_HOSTNAME
         )
         self.addCleanup(s.close)
-        self.assertRaisesRegex(ssl.SSLError, "certificate verify failed",
+        msg_re = "(certificate verify failed|CERTIFICATE_VERIFY_FAILED)"
+        self.assertRaisesRegex(ssl.SSLError, msg_re,
                                 s.connect, self.server_addr)
 
     def test_connect_capath(self):
@@ -3067,11 +3071,11 @@ class ThreadedTests(unittest.TestCase):
         client_context.verify_flags |= ssl.VERIFY_CRL_CHECK_LEAF
 
         server = ThreadedEchoServer(context=server_context, chatty=True)
+        msg_re = "(certificate verify failed|CERTIFICATE_VERIFY_FAILED)"
         with server:
             with client_context.wrap_socket(socket.socket(),
                                             server_hostname=hostname) as s:
-                with self.assertRaisesRegex(ssl.SSLError,
-                                            "certificate verify failed"):
+                with self.assertRaisesRegex(ssl.SSLError, msg_re):
                     s.connect((HOST, server.port))
 
         # now load a CRL file. The CRL file is signed by the CA.
@@ -3102,12 +3106,12 @@ class ThreadedTests(unittest.TestCase):
 
         # incorrect hostname should raise an exception
         server = ThreadedEchoServer(context=server_context, chatty=True)
+        err_re = "(CERTIFICATE_VERIFY_FAILED|"
+        err_re += "Hostname mismatch, certificate is not valid for 'invalid'.)"
         with server:
             with client_context.wrap_socket(socket.socket(),
                                             server_hostname="invalid") as s:
-                with self.assertRaisesRegex(
-                        ssl.CertificateError,
-                        "Hostname mismatch, certificate is not valid for 'invalid'."):
+                with self.assertRaisesRegex(ssl.CertificateError, err_re):
                     s.connect((HOST, server.port))
 
         # missing server_hostname arg should cause an exception, too
@@ -3377,8 +3381,13 @@ class ThreadedTests(unittest.TestCase):
                     self.assertIsInstance(e, ssl.SSLCertVerificationError)
                     self.assertEqual(e.verify_code, 20)
                     self.assertEqual(e.verify_message, msg)
+                    if Py_OPENSSL_IS_AWSLC:
+                        msg = "CERTIFICATE_VERIFY_FAILED"
                     self.assertIn(msg, repr(e))
-                    self.assertIn('certificate verify failed', repr(e))
+                    expected_err = 'certificate verify failed'
+                    if Py_OPENSSL_IS_AWSLC:
+                        expected_err = "CERTIFICATE_VERIFY_FAILED"
+                    self.assertIn(expected_err, repr(e))
 
     @requires_tls_version('SSLv2')
     def test_protocol_sslv2(self):
@@ -4016,7 +4025,10 @@ class ThreadedTests(unittest.TestCase):
                                             server_hostname=hostname) as s:
                 with self.assertRaises(ssl.SSLError) as e:
                     s.connect((HOST, server.port))
-                self.assertIn("alert", str(e.exception))
+                self.assertTrue(
+                    "alert"in str(e.exception)
+                    or "ALERT"in str(e.exception)
+                )
 
     @requires_tls_version('SSLv3')
     def test_min_max_version_sslv3(self):
@@ -4315,8 +4327,10 @@ class ThreadedTests(unittest.TestCase):
                                            chatty=False,
                                            sni_name='supermessage')
 
-            self.assertEqual(cm.exception.reason,
-                             'SSLV3_ALERT_HANDSHAKE_FAILURE')
+            expected_reason = 'SSLV3_ALERT_HANDSHAKE_FAILURE'
+            if Py_OPENSSL_IS_AWSLC:
+                expected_reason = 'NO_PRIVATE_VALUE'
+            self.assertEqual(cm.exception.reason, expected_reason)
             self.assertEqual(catch.unraisable.exc_type, ZeroDivisionError)
 
     def test_sni_callback_wrong_return_type(self):
