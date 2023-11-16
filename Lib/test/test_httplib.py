@@ -1863,7 +1863,7 @@ class HTTPSTest(TestCase):
 
     def test_tls13_pha(self):
         import ssl
-        if not ssl.HAS_TLSv1_3:
+        if not ssl.HAS_TLSv1_3 or "AWS-LC" in ssl.OPENSSL_VERSION:
             self.skipTest('TLS 1.3 support required')
         # just check status of PHA flag
         h = client.HTTPSConnection('localhost', 443)
