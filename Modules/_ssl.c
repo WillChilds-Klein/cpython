@@ -973,7 +973,7 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
     do {
         PySSL_BEGIN_ALLOW_THREADS
         ret = SSL_do_handshake(self->ssl);
-        /*printf("SSL_do_handshake RET: %d %u\n", ret, SSL_get_error(self->ssl, ret));*/
+        /*printf("HANDSHAKE SSL_do_handshake RET: %d %u\n", ret, SSL_get_error(self->ssl, ret));*/
         err = _PySSL_errno(ret < 1, self->ssl, ret);
         PySSL_END_ALLOW_THREADS
         self->err = err;
@@ -989,13 +989,14 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
         } else if (err.ssl == SSL_ERROR_WANT_WRITE) {
             sockstate = PySSL_select(sock, 1, timeout);
         } else {
-            if (err.ssl == SSL_ERROR_SYSCALL && (err.c == EAGAIN && err.c == EWOULDBLOCK)) {
-                err.ssl = SSL_ERROR_WANT_WRITE;
+            /*printf("HANDSHAKE ERRNO: %d\tPYERR C: %d\tPYERR SSL: %d\n", errno, err.c, err.ssl);*/
+            if (err.ssl == SSL_ERROR_SYSCALL && (err.c == EAGAIN || err.c == EWOULDBLOCK)) {
+                /*err.ssl = SSL_ERROR_WANT_WRITE;*/
             }
             sockstate = SOCKET_OPERATION_OK;
         }
 
-        /*printf("SOCKSTATE: %d %d\n", sockstate, err.ssl);*/
+        /*printf("HANDSHAKE SOCKSTATE: %d %d\n", sockstate, err.ssl);*/
 
         if (sockstate == SOCKET_HAS_TIMED_OUT) {
             PyErr_SetString(PyExc_TimeoutError,
@@ -1016,7 +1017,7 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
              err.ssl == SSL_ERROR_WANT_WRITE);
     Py_XDECREF(sock);
 
-    /*printf("SSL_do_handshake FINAL RET: %d %u\n", ret, SSL_get_error(self->ssl, ret));*/
+    /*printf("HANDSHAKE SSL_do_handshake FINAL RET: %d %u\n", ret, SSL_get_error(self->ssl, ret));*/
     if (ret < 1)
         return PySSL_SetError(self, ret, __FILE__, __LINE__);
     if (PySSL_ChainExceptions(self) < 0)
@@ -2428,6 +2429,7 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
     //printf("SOCKOPT %s:\t%d\n", "TCP_NODELAY", val);
     //printf("\n");
 
+    /*printf("TRYING TO WRITE 2!!\n");*/
     do {
         PySSL_BEGIN_ALLOW_THREADS
 
@@ -2442,7 +2444,7 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
         PySSL_END_ALLOW_THREADS
         self->err = err;
 
-        //printf("FOOBAR %s\n", SSL_error_description(SSL_get_error(self->ssl, retval)));
+        /*printf("WRITE RETVAL %d %s\n", retval, SSL_error_description(SSL_get_error(self->ssl, retval)));*/
 
         if (PyErr_CheckSignals())
             goto error;
@@ -2455,8 +2457,9 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
         } else if (err.ssl == SSL_ERROR_WANT_WRITE) {
             sockstate = PySSL_select(sock, 1, timeout);
         } else {
-            if (err.ssl == SSL_ERROR_SYSCALL && (err.c == EAGAIN && err.c == EWOULDBLOCK)) {
-                err.ssl = SSL_ERROR_WANT_WRITE;
+            /*printf("WRITE ERRNO: %d\tPYERR C: %d\tPYERR SSL: %d\n", errno, err.c, err.ssl);*/
+            if (err.ssl == SSL_ERROR_SYSCALL && (err.c == EAGAIN || err.c == EWOULDBLOCK)) {
+                /*err.ssl = SSL_ERROR_WANT_WRITE;*/
             }
             sockstate = SOCKET_OPERATION_OK;
         }
@@ -2475,6 +2478,8 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
     } while (err.ssl == SSL_ERROR_WANT_READ ||
              err.ssl == SSL_ERROR_WANT_WRITE);
 
+    /*printf("WRITE FINAL ERRNO: %d\tPYERR C: %d\tPYERR SSL: %d\n", errno, err.c, err.ssl);*/
+    /*printf("WRITE FINAL %lu\n", count);*/
     Py_XDECREF(sock);
     if (retval == 0)
         return PySSL_SetError(self, retval, __FILE__, __LINE__);
@@ -2608,7 +2613,7 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
 
         if (has_timeout)
             timeout = deadline - _PyTime_GetMonotonicClock();
-    /*printf("TRYING TO READ 3 %d!!\n", err.ssl);*/
+        /*printf("READ RETVAL %d ERR %d!!\n", retval, err.ssl);*/
 
         if (err.ssl == SSL_ERROR_WANT_READ) {
             sockstate = PySSL_select(sock, 0, timeout);
@@ -2622,9 +2627,9 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
         }
         else {
             sockstate = SOCKET_OPERATION_OK;
-            //printf("ERRNO: %d\tPYERR C: %d\tPYERR SSL: %d\n", errno, err.c, err.ssl);
-            if (err.ssl == SSL_ERROR_SYSCALL && (err.c == EAGAIN && err.c == EWOULDBLOCK)) {
-                err.ssl = SSL_ERROR_WANT_READ;
+            /*printf("READ ERRNO: %d\tPYERR C: %d\tPYERR SSL: %d\n", errno, err.c, err.ssl);*/
+            if (err.ssl == SSL_ERROR_SYSCALL && (err.c == EAGAIN || err.c == EWOULDBLOCK)) {
+                /*err.ssl = SSL_ERROR_WANT_READ;*/
             }
         }
 
@@ -2646,6 +2651,8 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
         goto error;
 
 done:
+    /*printf("READ FINAL ERRNO: %d\tPYERR C: %d\tPYERR SSL: %d\n", errno, err.c, err.ssl);*/
+    /*printf("READ FNAL %lu!\n", count);*/
     Py_XDECREF(sock);
     if (!group_right_1) {
         _PyBytes_Resize(&dest, count);
