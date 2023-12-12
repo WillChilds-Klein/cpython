@@ -988,6 +988,9 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
         } else if (err.ssl == SSL_ERROR_WANT_WRITE) {
             sockstate = PySSL_select(sock, 1, timeout);
         } else {
+            if (err.ssl == SSL_ERROR_SYSCALL && (err.c == EAGAIN && err.c == EWOULDBLOCK)) {
+                err.ssl = SSL_ERROR_WANT_WRITE;
+            }
             sockstate = SOCKET_OPERATION_OK;
         }
 
@@ -2418,6 +2421,9 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
         } else if (err.ssl == SSL_ERROR_WANT_WRITE) {
             sockstate = PySSL_select(sock, 1, timeout);
         } else {
+            if (err.ssl == SSL_ERROR_SYSCALL && (err.c == EAGAIN && err.c == EWOULDBLOCK)) {
+                err.ssl = SSL_ERROR_WANT_WRITE;
+            }
             sockstate = SOCKET_OPERATION_OK;
         }
 
@@ -2577,6 +2583,9 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
         }
         else {
             sockstate = SOCKET_OPERATION_OK;
+            if (err.ssl == SSL_ERROR_SYSCALL && (err.c == EAGAIN && err.c == EWOULDBLOCK)) {
+                err.ssl = SSL_ERROR_WANT_READ;
+            }
         }
 
         if (sockstate == SOCKET_HAS_TIMED_OUT) {
