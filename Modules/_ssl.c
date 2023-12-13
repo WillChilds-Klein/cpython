@@ -2287,20 +2287,18 @@ PySSL_select(PySocketSockObject *s, int writing, _PyTime_t timeout)
 #endif
 
     /* Nothing to do unless we're in timeout mode (not non-blocking) */
-    if ((s == NULL) || (timeout == 0)) {
+    if ((s == NULL) || (timeout == 0))
         return SOCKET_IS_NONBLOCKING;
-    } else if (timeout < 0) {
-        if (s->sock_timeout > 0) {
+    else if (timeout < 0) {
+        if (s->sock_timeout > 0)
             return SOCKET_HAS_TIMED_OUT;
-        } else {
+        else
             return SOCKET_IS_BLOCKING;
-        }
     }
 
     /* Guard against closed socket */
-    if (s->sock_fd == INVALID_SOCKET) {
+    if (s->sock_fd == INVALID_SOCKET)
         return SOCKET_HAS_BEEN_CLOSED;
-    }
 
     /* Prefer poll, if available, since you can poll() any fd
      * which can't be done with select(). */
@@ -2575,9 +2573,8 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
             count = 0;
             goto done;
         }
-        else {
+        else
             sockstate = SOCKET_OPERATION_OK;
-        }
 
         if (sockstate == SOCKET_HAS_TIMED_OUT) {
             PyErr_SetString(PyExc_TimeoutError,

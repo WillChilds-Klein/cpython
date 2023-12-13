@@ -666,9 +666,8 @@ internal_setblocking(PySocketSockObject *s, int block)
 #ifndef MS_WINDOWS
 #if (defined(HAVE_SYS_IOCTL_H) && defined(FIONBIO))
     block = !block;
-    if (ioctl(s->sock_fd, FIONBIO, (unsigned int *)&block) == -1) {
+    if (ioctl(s->sock_fd, FIONBIO, (unsigned int *)&block) == -1)
         goto done;
-    }
 #else
     delay_flag = fcntl(s->sock_fd, F_GETFL, 0);
     if (delay_flag == -1)

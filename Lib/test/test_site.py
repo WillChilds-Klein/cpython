@@ -520,18 +520,12 @@ class ImportSideEffectTests(unittest.TestCase):
         # This test is a bit fragile since it depends on the format of the
         # string displayed by license in the absence of a LICENSE file.
         #import ssl
-        #ctx = ssl.create_default_context()
-        #ctx.check_hostname = False
-        #ctx.verify_mode = ssl.CERT_NONE
-        #ctx.keylog_filename = 'combined.keys'
         url = license._Printer__data.split()[1]
-        #url = 'https://localhost:4443'
         req = urllib.request.Request(url, method='HEAD')
         # Reset global urllib.request._opener
         self.addCleanup(urllib.request.urlcleanup)
         try:
             with socket_helper.transient_internet(url):
-                #with urllib.request.urlopen(req, context=ctx) as data:
                 with urllib.request.urlopen(req) as data:
                     code = data.getcode()
         except urllib.error.HTTPError as e:
