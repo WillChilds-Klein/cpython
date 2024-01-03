@@ -2401,7 +2401,7 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
     do {
         PySSL_BEGIN_ALLOW_THREADS
         retval = SSL_write_ex(self->ssl, b->buf, (size_t)b->len, &count);
-        err = _PySSL_errno(retval == 0, self->ssl, count);
+        err = _PySSL_errno(retval <= 0, self->ssl, retval);
         PySSL_END_ALLOW_THREADS
         self->err = err;
 
@@ -2434,7 +2434,7 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
              err.ssl == SSL_ERROR_WANT_WRITE);
 
     Py_XDECREF(sock);
-    if (retval == 0)
+    if (retval <= 0)
         return PySSL_SetError(self, retval, __FILE__, __LINE__);
     if (PySSL_ChainExceptions(self) < 0)
         return NULL;
@@ -2553,7 +2553,7 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
     do {
         PySSL_BEGIN_ALLOW_THREADS
         retval = SSL_read_ex(self->ssl, mem, (size_t)len, &count);
-        err = _PySSL_errno(retval == 0, self->ssl, count);
+        err = _PySSL_errno(retval <= 0, self->ssl, retval);
         PySSL_END_ALLOW_THREADS
         self->err = err;
 
@@ -2586,7 +2586,7 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
     } while (err.ssl == SSL_ERROR_WANT_READ ||
              err.ssl == SSL_ERROR_WANT_WRITE);
 
-    if (retval == 0) {
+    if (retval <= 0) {
         PySSL_SetError(self, retval, __FILE__, __LINE__);
         goto error;
     }
