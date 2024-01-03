@@ -2553,13 +2553,8 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
 
     do {
         PySSL_BEGIN_ALLOW_THREADS
-        count = SSL_read(self->ssl, mem, (size_t)len);
-        retval = count;
-        // NOTE: the issue is that SSL_get_error isn't really compatible with
-        // SSL_read_ex, as SSL_read_ex uses 0 for both EOF and real errors,
-        // whereas SSL_read only uses <= -1 for real errors. how to work around
-        // this limitation???
-        err = _PySSL_errno(retval <= 0, self->ssl, retval);
+        retval = SSL_read_ex(self->ssl, mem, (size_t)len, &count);
+        err = _PySSL_errno(retval == 0, self->ssl, retval);
         PySSL_END_ALLOW_THREADS
         self->err = err;
 
@@ -2592,7 +2587,7 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
     } while (err.ssl == SSL_ERROR_WANT_READ ||
              err.ssl == SSL_ERROR_WANT_WRITE);
 
-    if (retval <= 0) {
+    if (retval == 0) {
         PySSL_SetError(self, retval, __FILE__, __LINE__);
         goto error;
     }
