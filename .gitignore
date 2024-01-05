@@ -144,3 +144,4 @@ Tools/ssl/win32
 /Programs/_freeze_module
 /Python/deepfreeze/
 /Python/frozen_modules/
+bench/scratch/
