@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-set -exuo pipefail
-
+set -e
+set -o pipefail
+set -x
 
 BENCH_DIR=$(realpath ./bench)
 SCRATCH_DIR=$BENCH_DIR/scratch
@@ -18,6 +19,9 @@ function setup() {
     INSTALL_DIR=$SCRATCH_DIR_OSSL/install
     mkdir -p $SCRATCH_DIR_OSSL $SRC_DIR $INSTALL_DIR
 
+    # NOTE: need to run this from python source root
+    make clean || /bin/true
+
     # this assumes all sources managed under git
     [[ -d ${SRC_DIR}/.git ]] \
         || git clone \
@@ -28,21 +32,23 @@ function setup() {
 }
 
 function build_awslc() {
-    pushd $SRC_DIR
     local fips=${1:-"OFF"}
-    local build_dir=./build
+    pushd $SRC_DIR
+    mkdir -p build
+    pushd build
     cmake \
-        -B${build_dir} \
-        -S${SRC_DIR} \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
         -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
-        -DFIPS=$fips \
+        -DFIPS=${fips} \
         -DBUILD_LIBSSL=ON \
         -DBUILD_SHARED_LIBS=OFF \
-        -DBUILD_TESTING=OFF
-    make -C ${build_dir} -j $(nproc) install
-    popd
+        -DBUILD_TESTING=OFF \
+        ..
+    make -j$(nproc)
+    make install
+    popd # build
+    popd # $SRC_DIR
 }
 
 function build_openssl() {
@@ -53,9 +59,8 @@ function build_openssl() {
         -d
     make -j$(nproc)
     make install_sw
-    # some systems install under "lib64" instead of "lib", so ensure both
-    [[ -d ${INSTALL_DIR}/lib64 ]] || ln -s ${INSTALL_DIR}/lib{,64}
-    [[ -d ${INSTALL_DIR}/lib   ]] || ln -s ${INSTALL_DIR}/lib{64,}
+    # some systems install under "lib64" instead of "lib"
+    [[ -d ${INSTALL_DIR}/lib ]] || ln -s ${INSTALL_DIR}/lib{64,}
     popd
 }
 
@@ -67,23 +72,32 @@ function build_python() {
         --with-ssl-default-suites=openssl \
         --prefix=${INSTALL_DIR}
     make -j$(nproc)
+    rm -rf ${INSTALL_DIR}
+}
+
+function benchmark() {
+    local expected_lib=${1}
+    ./python -c 'import ssl; print(ssl.OPENSSL_VERSION)' | grep "${expected_lib}"
+    ./python $BENCH_DIR/benchmarks.py | tee -a $REPORT_FILE
 }
 
 function main() {
+    rm -rf $REPORT_FILE $SCRATCH_DIR
+
     setup WillChilds-Klein/aws-lc libssl-handle-EAGAIN
     build_awslc
     build_python
-    ./python $BENCH_DIR/benchmarks.py | tee $REPORT_FILE
+    benchmark 'AWS-LC'
 
-    setup openssl/openssl master
+    setup openssl/openssl openssl-3.0
     build_openssl
     build_python
-    ./python $BENCH_DIR/benchmarks.py |& tee $REPORT_FILE
+    benchmark 'OpenSSL 3.0'
 
     setup openssl/openssl OpenSSL_1_1_1-stable
     build_openssl
     build_python
-    ./python $BENCH_DIR/benchmarks.py |& tee $REPORT_FILE
+    benchmark 'OpenSSL 1.1.1'
 }
 
 main
