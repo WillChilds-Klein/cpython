@@ -89,15 +89,20 @@ function main() {
     build_python
     benchmark 'AWS-LC'
 
+    setup openssl/openssl OpenSSL_1_1_1-stable
+    build_openssl
+    build_python
+    benchmark 'OpenSSL 1.1.1'
+
     setup openssl/openssl openssl-3.0
     build_openssl
     build_python
     benchmark 'OpenSSL 3.0'
 
-    setup openssl/openssl OpenSSL_1_1_1-stable
+    setup openssl/openssl openssl-3.2
     build_openssl
     build_python
-    benchmark 'OpenSSL 1.1.1'
+    benchmark 'OpenSSL 3.2'
 }
 
 main
