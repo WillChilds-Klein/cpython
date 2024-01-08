@@ -4776,6 +4776,31 @@ class TestPostHandshakeAuth(unittest.TestCase):
                 self.assertEqual(res, b'\x02\n')
 
 
+@unittest.skipUnless(Py_OPENSSL_IS_AWSLC, "Only test this against AWS-LC")
+class TestPostHandshakeAuthAwsLc(unittest.TestCase):
+    def test_pha(self):
+        protocols = [
+            ssl.PROTOCOL_TLS_SERVER, ssl.PROTOCOL_TLS_CLIENT
+        ]
+        for protocol in protocols:
+            client_ctx, server_ctx, hostname = testing_context()
+            client_ctx.load_cert_chain(SIGNED_CERTFILE)
+            self.assertEqual(client_ctx.post_handshake_auth, None)
+            with self.assertRaises(AttributeError):
+                client_ctx.post_handshake_auth = True
+            with self.assertRaises(AttributeError):
+                server_ctx.post_handshake_auth = True
+
+            with ThreadedEchoServer(context=server_ctx) as server:
+                with client_ctx.wrap_socket(
+                    socket.socket(),
+                    server_hostname=hostname
+                ) as ssock:
+                    ssock.connect((HOST, server.port))
+                    with self.assertRaises(NotImplementedError):
+                        ssock.verify_client_post_handshake()
+
+
 HAS_KEYLOG = hasattr(ssl.SSLContext, 'keylog_filename')
 requires_keylog = unittest.skipUnless(
     HAS_KEYLOG, 'test requires OpenSSL 1.1.1 with keylog callback')
