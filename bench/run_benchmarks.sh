@@ -103,6 +103,11 @@ function main() {
     build_openssl
     build_python
     benchmark 'OpenSSL 3.2'
+
+    setup openssl/openssl master
+    build_openssl
+    build_python
+    benchmark 'OpenSSL 3'
 }
 
 main
