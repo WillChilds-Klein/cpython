@@ -3198,7 +3198,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
 
     /* Set SSL_MODE_RELEASE_BUFFERS. This potentially greatly reduces memory
        usage for no cost at all. */
-    SSL_CTX_set_mode(self->ctx, SSL_MODE_RELEASE_BUFFERS);
+    SSL_CTX_set_mode(self->ctx, SSL_MODE_RELEASE_BUFFERS | SSL_MODE_AUTO_RETRY);
 
 #define SID_CTX "Python"
     SSL_CTX_set_session_id_context(self->ctx, (const unsigned char *) SID_CTX,
