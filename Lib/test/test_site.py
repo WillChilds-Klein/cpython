@@ -472,6 +472,7 @@ class ImportSideEffectTests(unittest.TestCase):
     def test_license_exists_at_url(self):
         # This test is a bit fragile since it depends on the format of the
         # string displayed by license in the absence of a LICENSE file.
+        #import ssl
         url = license._Printer__data.split()[1]
         req = urllib.request.Request(url, method='HEAD')
         # Reset global urllib.request._opener
