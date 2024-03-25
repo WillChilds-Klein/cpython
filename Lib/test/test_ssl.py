@@ -44,6 +44,7 @@ from ssl import TLSVersion, _TLSContentType, _TLSMessageType, _TLSAlertType
 
 Py_DEBUG = hasattr(sys, 'gettotalrefcount')
 Py_DEBUG_WIN32 = Py_DEBUG and sys.platform == 'win32'
+Py_OPENSSL_IS_AWSLC = "AWS-LC" in ssl.OPENSSL_VERSION
 
 PROTOCOLS = sorted(ssl._PROTOCOL_NAMES)
 HOST = socket_helper.HOST
@@ -170,7 +171,7 @@ def is_ubuntu():
     except FileNotFoundError:
         return False
 
-if is_ubuntu():
+if is_ubuntu() and not Py_OPENSSL_IS_AWSLC:
     def seclevel_workaround(*ctxs):
         """"Lower security level to '1' and allow all ciphers for TLS 1.0/1"""
         for ctx in ctxs:
@@ -1344,7 +1345,6 @@ class ContextTests(unittest.TestCase):
 
         if has_tls_protocol(ssl.PROTOCOL_TLSv1_1):
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_1)
-
             self.assertIn(
                 ctx.minimum_version, minimum_range
             )
@@ -4212,6 +4212,7 @@ class ThreadedTests(unittest.TestCase):
         self.assertIs(stats['compression'], None)
 
     @unittest.skipIf(Py_DEBUG_WIN32, "Avoid mixing debug/release CRT on Windows")
+    @unittest.skipIf(Py_OPENSSL_IS_AWSLC, "AWS-LC doesn't support (FF)DHE")
     def test_dh_params(self):
         # Check we can get a connection with ephemeral Diffie-Hellman
         client_context, server_context, hostname = testing_context()
@@ -4571,7 +4572,10 @@ class ThreadedTests(unittest.TestCase):
                                  'Session refers to a different SSLContext.')
 
 
-@unittest.skipUnless(has_tls_version('TLSv1_3'), "Test needs TLS 1.3")
+@unittest.skipUnless(
+    has_tls_version('TLSv1_3') and not Py_OPENSSL_IS_AWSLC,
+    "Test needs TLS 1.3; AWS-LC doesn't support PHA"
+)
 class TestPostHandshakeAuth(unittest.TestCase):
     def test_pha_setter(self):
         protocols = [
@@ -4845,6 +4849,31 @@ class TestPostHandshakeAuth(unittest.TestCase):
                 s.write(b'UNVERIFIEDCHAIN\n')
                 res = s.recv(1024)
                 self.assertEqual(res, b'\x02\n')
+
+
+@unittest.skipUnless(Py_OPENSSL_IS_AWSLC, "Only test this against AWS-LC")
+class TestPostHandshakeAuthAwsLc(unittest.TestCase):
+    def test_pha(self):
+        protocols = [
+            ssl.PROTOCOL_TLS_SERVER, ssl.PROTOCOL_TLS_CLIENT
+        ]
+        for protocol in protocols:
+            client_ctx, server_ctx, hostname = testing_context()
+            client_ctx.load_cert_chain(SIGNED_CERTFILE)
+            self.assertEqual(client_ctx.post_handshake_auth, None)
+            with self.assertRaises(AttributeError):
+                client_ctx.post_handshake_auth = True
+            with self.assertRaises(AttributeError):
+                server_ctx.post_handshake_auth = True
+
+            with ThreadedEchoServer(context=server_ctx) as server:
+                with client_ctx.wrap_socket(
+                    socket.socket(),
+                    server_hostname=hostname
+                ) as ssock:
+                    ssock.connect((HOST, server.port))
+                    with self.assertRaises(NotImplementedError):
+                        ssock.verify_client_post_handshake()
 
 
 HAS_KEYLOG = hasattr(ssl.SSLContext, 'keylog_filename')

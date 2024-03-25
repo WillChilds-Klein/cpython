@@ -179,6 +179,12 @@ extern const SSL_METHOD *TLSv1_2_method(void);
 #endif
 
 
+
+#if defined(OPENSSL_IS_AWSLC) || !defined(TLS1_3_VERSION) || defined(OPENSSL_NO_TLS1_3)
+  #define PY_SSL_NO_POST_HS_AUTH
+#endif
+
+
 enum py_ssl_error {
     /* these mirror ssl.h */
     PY_SSL_ERROR_NONE,
@@ -223,7 +229,7 @@ enum py_proto_version {
     PY_PROTO_TLSv1 = TLS1_VERSION,
     PY_PROTO_TLSv1_1 = TLS1_1_VERSION,
     PY_PROTO_TLSv1_2 = TLS1_2_VERSION,
-#ifdef TLS1_3_VERSION
+#if defined(TLS1_3_VERSION)
     PY_PROTO_TLSv1_3 = TLS1_3_VERSION,
 #else
     PY_PROTO_TLSv1_3 = 0x304,
@@ -285,7 +291,7 @@ typedef struct {
      */
     unsigned int hostflags;
     int protocol;
-#ifdef TLS1_3_VERSION
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     int post_handshake_auth;
 #endif
     PyObject *msg_cb;
@@ -857,7 +863,7 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
     SSL_set_mode(self->ssl,
                  SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | SSL_MODE_AUTO_RETRY);
 
-#ifdef TLS1_3_VERSION
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     if (sslctx->post_handshake_auth == 1) {
         if (socket_type == PY_SSL_SERVER) {
             /* bpo-37428: OpenSSL does not ignore SSL_VERIFY_POST_HANDSHAKE.
@@ -1002,6 +1008,7 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
     } while (err.ssl == SSL_ERROR_WANT_READ ||
              err.ssl == SSL_ERROR_WANT_WRITE);
     Py_XDECREF(sock);
+
     if (ret < 1)
         return PySSL_SetError(self, ret, __FILE__, __LINE__);
     if (PySSL_ChainExceptions(self) < 0)
@@ -2041,7 +2048,12 @@ _ssl__SSLSocket_shared_ciphers_impl(PySSLSocket *self)
     len = 0;
     for (i = 0; i < sk_SSL_CIPHER_num(server_ciphers); i++) {
         cipher = sk_SSL_CIPHER_value(server_ciphers, i);
+#if defined(OPENSSL_IS_AWSLC)
+        size_t unused_idx;
+        if (sk_SSL_CIPHER_find(client_ciphers, &unused_idx, cipher) < 0)
+#else
         if (sk_SSL_CIPHER_find(client_ciphers, cipher) < 0)
+#endif
             continue;
 
         PyObject *tup = cipher_to_tuple(cipher);
@@ -2775,7 +2787,7 @@ static PyObject *
 _ssl__SSLSocket_verify_client_post_handshake_impl(PySSLSocket *self)
 /*[clinic end generated code: output=532147f3b1341425 input=6bfa874810a3d889]*/
 {
-#ifdef TLS1_3_VERSION
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     int err = SSL_verify_client_post_handshake(self->ssl);
     if (err == 0)
         return _setSSLError(get_state_sock(self), NULL, 0, __FILE__, __LINE__);
@@ -3191,7 +3203,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
 
     /* Set SSL_MODE_RELEASE_BUFFERS. This potentially greatly reduces memory
        usage for no cost at all. */
-    SSL_CTX_set_mode(self->ctx, SSL_MODE_RELEASE_BUFFERS);
+    SSL_CTX_set_mode(self->ctx, SSL_MODE_RELEASE_BUFFERS | SSL_MODE_AUTO_RETRY);
 
 #define SID_CTX "Python"
     SSL_CTX_set_session_id_context(self->ctx, (const unsigned char *) SID_CTX,
@@ -3204,7 +3216,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
     X509_VERIFY_PARAM_set_flags(params, X509_V_FLAG_TRUSTED_FIRST);
     X509_VERIFY_PARAM_set_hostflags(params, self->hostflags);
 
-#ifdef TLS1_3_VERSION
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     self->post_handshake_auth = 0;
     SSL_CTX_set_post_handshake_auth(self->ctx, self->post_handshake_auth);
 #endif
@@ -3578,7 +3590,7 @@ set_maximum_version(PySSLContext *self, PyObject *arg, void *c)
     return set_min_max_proto_version(self, arg, 1);
 }
 
-#ifdef TLS1_3_VERSION
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
 static PyObject *
 get_num_tickets(PySSLContext *self, void *c)
 {
@@ -3609,7 +3621,7 @@ set_num_tickets(PySSLContext *self, PyObject *arg, void *c)
 
 PyDoc_STRVAR(PySSLContext_num_tickets_doc,
 "Control the number of TLSv1.3 session tickets");
-#endif /* TLS1_3_VERSION */
+#endif /* defined(TLS1_3_VERSION) */
 
 static PyObject *
 get_security_level(PySSLContext *self, void *c)
@@ -3712,14 +3724,14 @@ set_check_hostname(PySSLContext *self, PyObject *arg, void *c)
 
 static PyObject *
 get_post_handshake_auth(PySSLContext *self, void *c) {
-#if TLS1_3_VERSION
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
     return PyBool_FromLong(self->post_handshake_auth);
 #else
     Py_RETURN_NONE;
 #endif
 }
 
-#if TLS1_3_VERSION
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
 static int
 set_post_handshake_auth(PySSLContext *self, PyObject *arg, void *c) {
     if (arg == NULL) {
@@ -4729,14 +4741,14 @@ static PyGetSetDef context_getsetlist[] = {
                       (setter) _PySSLContext_set_msg_callback, NULL},
     {"sni_callback", (getter) get_sni_callback,
                      (setter) set_sni_callback, PySSLContext_sni_callback_doc},
-#ifdef TLS1_3_VERSION
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3)
     {"num_tickets", (getter) get_num_tickets,
                     (setter) set_num_tickets, PySSLContext_num_tickets_doc},
 #endif
     {"options", (getter) get_options,
                 (setter) set_options, NULL},
     {"post_handshake_auth", (getter) get_post_handshake_auth,
-#ifdef TLS1_3_VERSION
+#if !defined(PY_SSL_NO_POST_HS_AUTH)
                             (setter) set_post_handshake_auth,
 #else
                             NULL,
